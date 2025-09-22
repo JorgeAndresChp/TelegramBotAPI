@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  telegram-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: telegram-ai-bot
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Variables de entorno requeridas
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME}
+      - AI_API_KEY=${AI_API_KEY}
+      - AI_API_URL=${AI_API_URL:-https://api.x.ai/v1/chat/completions}
+      - AI_MODEL=${AI_MODEL:-grok-beta}
+      - SERVER_PORT=8080
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    volumes:
+      # Opcional: persistir logs
+      - ./logs:/app/logs
+    networks:
+      - bot-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.telegram-bot.rule=Host(`bot.localhost`)"
+      - "traefik.http.services.telegram-bot.loadbalancer.server.port=8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/bot/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Opcional: Nginx como reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: telegram-bot-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - telegram-bot
+    networks:
+      - bot-network
+    profiles:
+      - with-nginx
+
+  # Opcional: Monitoreo con Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: telegram-bot-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - bot-network
+    profiles:
+      - with-monitoring
+
+networks:
+  bot-network:
+    driver: bridge
+
+volumes:
+  prometheus_data:

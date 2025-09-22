@@ -1,0 +1,38 @@
+# Archivos de configuración
+.env
+*.log
+logs/
+
+# Build y dependencias
+target/
+*.jar
+*.war
+*.ear
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Archivos temporales
+*.tmp
+*.temp
+
+# Certificados SSL (si se usan)
+ssl/
+*.pem
+*.key
+*.crt
+
+# Datos de monitoreo
+prometheus_data/
